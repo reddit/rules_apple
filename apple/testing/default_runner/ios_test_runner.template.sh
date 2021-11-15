@@ -64,9 +64,13 @@ else
   TEST_BUNDLE_TMP_DIR="${TMP_DIR}/${TEST_BUNDLE_NAME}"
   unzip -qq -d "${TEST_BUNDLE_TMP_DIR}" "${TEST_BUNDLE_PATH}"
   runner_flags+=("--test_bundle_path=${TEST_BUNDLE_TMP_DIR}/${TEST_BUNDLE_NAME}.xctest")
-  test_binary="${TEST_BUNDLE_TMP_DIR}/${TEST_BUNDLE_NAME}.xctest/$TEST_BUNDLE_NAME"
+  # NOTE:(bogo) Turns out that for tests with a host app, the *.xctest bundle will be moved away
+  # at runtime. This leaves us with two options - unpack the bundle again for coverage, or search
+  # for the binary again after the tests are done, but before they are processed.
+  COVERAGE_BUNDLE_TMP_DIR="${TEST_BUNDLE_TMP_DIR}_Coverage"
+  unzip -qq -d "${COVERAGE_BUNDLE_TMP_DIR}" "${TEST_BUNDLE_PATH}"
+  test_binary="${COVERAGE_BUNDLE_TMP_DIR}/${TEST_BUNDLE_NAME}.xctest/${TEST_BUNDLE_NAME}"
 fi
-
 
 TEST_HOST_PATH="%(test_host_path)s"
 
