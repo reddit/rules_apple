@@ -25,6 +25,7 @@ basename_without_extension() {
 
 custom_xctestrunner_args=()
 command_line_args=()
+xcresults_parser=()
 device_id=""
 platform=""
 while [[ $# -gt 0 ]]; do
@@ -209,7 +210,7 @@ else
   target_flags=(
     "simulator_test"
     "--device_type=%(device_type)s"
-    "--os_version=%(os_version)s"
+    "--os_version=15.5"
   )
 fi
 
@@ -217,7 +218,42 @@ cmd=("%(testrunner_binary)s"
   "${runner_flags[@]}"
   "${target_flags[@]}"
   "${custom_xctestrunner_args[@]}")
-"${cmd[@]}" 2>&1
+
+xcresults_parser=("%(xcresults_parser)s")
+if [[ -z "${xcresults_parser[@]}" ]]; then
+  "${cmd[@]}" 2>&1
+else
+  runner_exit_code=0
+  "${cmd[@]}" 2>&1 || runner_exit_code=$?
+
+  # switch cases accordingly to XCTestRunner's exit codes
+  # https://github.com/google/xctestrunner/blob/master/test_runner/runner_exit_codes.py
+  case $runner_exit_code in
+    0)
+      # exit code 0 indicates no failures, continue with the script
+      continue
+      ;;
+
+    11)
+      # exit code 11 indiciates testing failed, review the results with xcresults_parser
+      quarantine_file=$(find ${TEST_BUNDLE_TMP_DIR}/${TEST_BUNDLE_NAME}.xctest -type f -iname "*_quarantine.yaml")
+      xcresults_parser+=(
+        "review-test-quarantine"
+        "--quarantine-path"
+        "$quarantine_file"
+        "--xcresult-path"
+        "$TEST_UNDECLARED_OUTPUTS_DIR/test.xcresult"
+      )
+      "${xcresults_parser[@]}"
+      ;;
+
+    *)
+      # for all other exit codes, exit with the original exit code
+      exit $exit_code
+      ;;
+  esac
+fi
+
 
 if [[ "${COVERAGE:-}" -ne 1 ]]; then
   # Normal tests run without coverage
