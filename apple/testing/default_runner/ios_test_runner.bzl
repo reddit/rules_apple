@@ -19,13 +19,14 @@ load(
     "AppleTestRunnerInfo",
 )
 
-def _get_template_substitutions(*, device_type, os_version, simulator_creator, testrunner):
+def _get_template_substitutions(*, device_type, os_version, simulator_creator, testrunner, xcresults_parser):
     """Returns the template substitutions for this runner."""
     subs = {
         "device_type": device_type,
         "os_version": os_version,
         "simulator_creator": simulator_creator,
         "testrunner_binary": testrunner,
+        "xcresults_parser": xcresults_parser,
     }
     return {"%(" + k + ")s": subs[k] for k in subs}
 
@@ -52,6 +53,7 @@ def _ios_test_runner_impl(ctx):
             os_version = os_version,
             simulator_creator = ctx.executable._simulator_creator.short_path,
             testrunner = ctx.executable._testrunner.short_path,
+            xcresults_parser = ctx.executable.xcresults_parser.short_path,
         ),
     )
     return [
@@ -65,7 +67,8 @@ def _ios_test_runner_impl(ctx):
         ),
         DefaultInfo(
             runfiles = ctx.attr._simulator_creator[DefaultInfo].default_runfiles
-                .merge(ctx.attr._testrunner[DefaultInfo].default_runfiles),
+                .merge(ctx.attr._testrunner[DefaultInfo].default_runfiles)
+                .merge(ctx.attr.xcresults_parser[DefaultInfo].default_runfiles),
         ),
     ]
 
@@ -101,6 +104,14 @@ By default, it is the latest supported version of the device type.'
 Optional dictionary with the environment variables that are to be propagated
 into the XCTest invocation.
 """,
+        ),
+        "xcresults_parser": attr.label(
+            cfg = "exec",
+            doc = """
+Optional result parser that enables post-processing xcresults of the test run
+despite potential failures.
+""",
+            executable = True,
         ),
         "_test_template": attr.label(
             default = Label(
