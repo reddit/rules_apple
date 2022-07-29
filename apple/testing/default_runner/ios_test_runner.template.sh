@@ -238,7 +238,7 @@ else
   target_flags=(
     "simulator_test"
     "--device_type=%(device_type)s"
-    "--os_version=15.5"
+    "--os_version=%(os_version)s"
   )
 fi
 
@@ -259,12 +259,13 @@ else
   case $runner_exit_code in
     0)
       # exit code 0 indicates no failures, continue with the script
-      continue
       ;;
 
     11)
       # exit code 11 indiciates testing failed, review the results with xcresults_parser
-      quarantine_file=$(find ${TEST_BUNDLE_TMP_DIR}/${TEST_BUNDLE_NAME}.xctest -type f -iname "*_quarantine.yaml")
+
+      # search the entire $TMP_DIR, since for hosted tests, the *.xctest might be moved to PlugIns
+      quarantine_file=$(find ${TMP_DIR} -type f -iname "*_quarantine.yaml" | head -n 1)
       xcresults_parser+=(
         "review-test-quarantine"
         "--quarantine-path"
