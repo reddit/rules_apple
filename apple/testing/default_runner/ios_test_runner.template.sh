@@ -235,6 +235,31 @@ else
   runner_exit_code=0
   "${cmd[@]}" 2>&1 || runner_exit_code=$?
 
+  prune_large_files() {
+    # prune the large files (i.e. simctl diagnostics) that Xcode 13+ writes to xcresult bundles
+    xcresults_parser_strip=$xcresults_parser
+    xcresults_parser_strip+=(
+      "prune-large-files"
+      "--xcresult-path"
+      "$TEST_UNDECLARED_OUTPUTS_DIR/test.xcresult"
+    )
+    "${xcresults_parser_strip[@]}"
+  }
+
+  review_test_quarantine() {
+    # search the entire $TMP_DIR, since for hosted tests, the *.xctest might be moved to PlugIns
+    quarantine_file=$(find ${TMP_DIR} -type f -iname "*_quarantine.yaml" | head -n 1)
+    xcresults_parser_review=$xcresults_parser
+    xcresults_parser_review+=(
+      "review-test-quarantine"
+      "--quarantine-path"
+      "$quarantine_file"
+      "--xcresult-path"
+      "$TEST_UNDECLARED_OUTPUTS_DIR/test.xcresult"
+    )
+    "${xcresults_parser_review[@]}"
+  }
+
   # switch cases accordingly to XCTestRunner's exit codes
   # https://github.com/google/xctestrunner/blob/master/test_runner/runner_exit_codes.py
   case $runner_exit_code in
@@ -244,21 +269,14 @@ else
 
     11)
       # exit code 11 indiciates testing failed, review the results with xcresults_parser
-
-      # search the entire $TMP_DIR, since for hosted tests, the *.xctest might be moved to PlugIns
-      quarantine_file=$(find ${TMP_DIR} -type f -iname "*_quarantine.yaml" | head -n 1)
-      xcresults_parser+=(
-        "review-test-quarantine"
-        "--quarantine-path"
-        "$quarantine_file"
-        "--xcresult-path"
-        "$TEST_UNDECLARED_OUTPUTS_DIR/test.xcresult"
-      )
-      "${xcresults_parser[@]}"
+      prune_large_files
+      review_test_quarantine
       ;;
 
     *)
       # for all other exit codes, exit with the original exit code
+      prune_large_files
+
       exit $exit_code
       ;;
   esac
